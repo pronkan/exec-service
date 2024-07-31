@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option go_package = "github.com/pronkan/exec-service/execservice";
+
+package execservice;
+
+service ExecService {
+  rpc Execute (ExecuteRequest) returns (stream ExecuteResponse) {}
+}
+
+message ExecuteRequest {
+  string token = 1;
+  repeated string args = 2;
+}
+
+message ExecuteResponse {
+  string output = 1;
+  int32 exit_code = 2;
+}
