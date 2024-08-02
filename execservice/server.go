@@ -2,11 +2,14 @@ package execservice
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/grpc/codes"
@@ -84,5 +87,26 @@ func streamOutput(pipe io.ReadCloser, stream ExecService_ExecuteServer, pipeName
 	for scanner.Scan() {
 		log.Println(pipeName, ":", scanner.Text())
 		stream.Send(&ExecuteResponse{Output: scanner.Text()})
+	}
+}
+
+// GenerateTokenHandler creates an HTTP handler function that generates a JWT token.
+func GenerateTokenHandler(secretKey string, expirationTime time.Duration) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Create claims
+		claims := jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expirationTime)),
+		}
+
+		// Create and sign the token
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString([]byte(secretKey))
+		if err != nil {
+			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprintln(w, tokenString)
 	}
 }

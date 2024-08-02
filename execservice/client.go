@@ -3,14 +3,16 @@ package execservice
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"time"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
-	"io"
-	"log"
 )
 
-func RunClient(host, port string, args []string, tokenString string) {
+func RunClient(host, port string, args []string, tokenString string, timeout time.Duration) {
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", host, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
@@ -19,7 +21,15 @@ func RunClient(host, port string, args []string, tokenString string) {
 
 	client := NewExecServiceClient(conn)
 
+	// Create context with timeout (if provided)
 	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	// Add token to metadata
 	if tokenString != "" {
 		md := metadata.Pairs("authorization", tokenString)
 		ctx = metadata.NewOutgoingContext(ctx, md)
